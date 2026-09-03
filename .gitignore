@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Production builds
+dist/
+**/dist/
+build/
+**/build/
+
+# Local env & config
+.env
+.env.*
+.DS_Store
+powershell.bat
+zip_build.js
+
+# ZIP archives
+*.zip
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.suo
+*.user

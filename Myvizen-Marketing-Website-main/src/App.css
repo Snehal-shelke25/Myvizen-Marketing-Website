@@ -1,0 +1,36 @@
+/* ==========================================================================
+   MYVIZEN APP LAYOUT & COMPONENT OVERRIDES
+   ========================================================================== */
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+}
+
+main {
+  flex: 1;
+}
+
+/* Form input focus styles */
+.form-input:focus {
+  border-color: var(--primary-mid) !important;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2) !important;
+  outline: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--primary-mid);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
+}
