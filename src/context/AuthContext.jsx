@@ -2,34 +2,33 @@ import React, { createContext, useContext, useState } from 'react';
 
 const AuthContext = createContext(null);
 
-// Demo credentials — change as needed
-const VALID_EMAIL    = 'coach@myvizen.com';
+const VALID_EMAIL = 'admin@myvizen.in';
 const VALID_PASSWORD = 'myvizen123';
 
 export function AuthProvider({ children }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [coachName, setCoachName] = useState('');
+  const [adminName, setAdminName] = useState('');
   const [loginError, setLoginError] = useState('');
 
   const login = (email, password) => {
     if (email === VALID_EMAIL && password === VALID_PASSWORD) {
       setIsLoggedIn(true);
-      setCoachName('Snehal Shelke');
+      setAdminName('MyVizen Admin');
       setLoginError('');
       return true;
-    } else {
-      setLoginError('Invalid email or password. Please try again.');
-      return false;
     }
+
+    setLoginError('Invalid admin email or password. Please try again.');
+    return false;
   };
 
   const logout = () => {
     setIsLoggedIn(false);
-    setCoachName('');
+    setAdminName('');
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, coachName, login, logout, loginError, setLoginError }}>
+    <AuthContext.Provider value={{ isLoggedIn, adminName, coachName: adminName, login, logout, loginError, setLoginError }}>
       {children}
     </AuthContext.Provider>
   );

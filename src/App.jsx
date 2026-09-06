@@ -28,6 +28,7 @@ import OrderStatusPage from './pages/OrderStatusPage';
 
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import CoachManagement from './pages/admin/CoachManagement';
 import GuestManagement from './pages/admin/GuestManagement';
 import ReportGenerator from './pages/admin/ReportGenerator';
 import DietArchitect from './pages/admin/DietArchitect';
@@ -92,6 +93,7 @@ export default function App() {
 
             {/* Protected Coach / Admin Dashboard Portal Routes */}
             <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/coaches" element={<ProtectedRoute><CoachManagement /></ProtectedRoute>} />
             <Route path="/admin/guests" element={<ProtectedRoute><GuestManagement /></ProtectedRoute>} />
             <Route path="/admin/reports" element={<ProtectedRoute><ReportGenerator /></ProtectedRoute>} />
             <Route path="/admin/diet-plans" element={<ProtectedRoute><DietArchitect /></ProtectedRoute>} />
