@@ -1,137 +1,88 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { useToast } from '../../context/ToastContext';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import CheckoutStepsHeader from '../../components/CheckoutStepsHeader';
+import * as checkoutApi from '../../checkout/api';
+import { getCheckout, setOrderToken } from '../../checkout/session';
 
+/**
+ * Step 2 — confirm the email code.
+ *
+ * This is what stops a payment being applied to somebody else's account
+ * through a typo, and stops anyone upgrading an account they do not own.
+ */
 export default function VerifyStep() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { showToast } = useToast();
+  const inputRef = useRef(null);
 
-  const plan = location.state?.plan || { id: 'professional', name: 'Professional' };
-  const durationMonths = location.state?.durationMonths || 3;
-  const amount = location.state?.amount || 1497;
-  const coach = location.state?.coach || { name: 'Pankaj Narwade', maskedEmail: 'pan***@example.com' };
+  const session = getCheckout();
+  const orderId = location.state?.orderId || session?.orderId;
+  const emailMasked = location.state?.emailMasked;
 
-  const [otp, setOtp] = useState(['5', '8', '2', '9', '1', '0']);
+  const [otp, setOtp] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleOtpChange = (index, value) => {
-    if (!/^\d*$/.test(value)) return;
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
+  useEffect(() => {
+    if (!orderId) navigate('/pricing', { replace: true });
+  }, [orderId, navigate]);
 
-    // Auto focus next input
-    if (value && index < 5) {
-      const nextInput = document.getElementById(`otp-input-${index + 1}`);
-      if (nextInput) nextInput.focus();
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setVerifying(true);
+    setError('');
+    try {
+      const order = await checkoutApi.verifyOrder(orderId, otp.trim());
+      setOrderToken(order.public_token);
+      navigate('/checkout/review', { state: { orderId } });
+    } catch (err) {
+      setError(err.message || 'That code is not correct.');
+      setOtp('');
+      inputRef.current?.focus();
+    } finally {
+      setVerifying(false);
     }
-  };
-
-  const handleFillDemoOtp = () => {
-    setOtp(['5', '8', '2', '9', '1', '0']);
-    showToast('Demo OTP 582910 filled!', 'info');
-  };
-
-  const handleResend = () => {
-    showToast('A new 6-digit verification code has been sent to ' + coach.maskedEmail, 'info');
-  };
-
-  const handleVerify = (e) => {
-    e.preventDefault();
-    if (otp.some(d => !d)) {
-      showToast('Please enter all 6 digits of the code', 'error');
-      return;
-    }
-    showToast('Account verified successfully!', 'success');
-    navigate('/checkout/review', {
-      state: { plan, durationMonths, amount, coach }
-    });
   };
 
   return (
-    <div style={{ paddingTop: '100px', paddingBottom: '80px', background: '#f8fafc', minHeight: '100vh', fontFamily: 'var(--font-body)' }}>
-      <div className="container" style={{ maxWidth: '580px' }}>
+    <div className="checkout-page">
+      <CheckoutStepsHeader currentStep={2} />
 
-        <CheckoutStepsHeader currentStep={2} />
-
-        {/* Step Header */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.8rem', fontWeight: '800', color: '#09381e', margin: '0 0 6px 0' }}>
-            Enter the 6-digit code
-          </h2>
-          <p style={{ fontSize: '0.9rem', color: '#64748b', margin: 0 }}>
-            We sent a verification code to <strong>{coach.maskedEmail}</strong>
+      <div className="container" style={{ maxWidth: '600px' }}>
+        <div className="checkout-card">
+          <h2>Enter the 6-digit code</h2>
+          <p className="checkout-help">
+            Sent to {emailMasked || 'your registered email address'}. It is valid
+            for 10 minutes.
           </p>
-        </div>
 
-        {/* Card */}
-        <div style={{ background: '#ffffff', borderRadius: '24px', padding: '36px', boxShadow: '0 8px 30px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' }}>
+          <form onSubmit={submit}>
+            <input
+              ref={inputRef}
+              className="admin-input checkout-otp"
+              value={otp}
+              onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="000000"
+              aria-label="6-digit confirmation code"
+              required
+            />
 
-          <form onSubmit={handleVerify}>
-            {/* 6 Digit Inputs */}
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '20px' }}>
-              {otp.map((digit, idx) => (
-                <input
-                  key={idx}
-                  id={`otp-input-${idx}`}
-                  type="text"
-                  maxLength="1"
-                  value={digit}
-                  onChange={e => handleOtpChange(idx, e.target.value)}
-                  style={{
-                    width: '46px',
-                    height: '54px',
-                    borderRadius: '12px',
-                    border: '2px solid #22c55e',
-                    fontSize: '1.4rem',
-                    fontFamily: 'var(--font-heading)',
-                    fontWeight: '800',
-                    textAlign: 'center',
-                    color: '#09381e',
-                    outline: 'none',
-                    background: '#f0fdf4',
-                  }}
-                />
-              ))}
-            </div>
+            {error && <div className="checkout-error" role="alert">{error}</div>}
 
-            {/* Quick Fill & Resend Links */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', fontSize: '0.85rem' }}>
-              <button
-                type="button"
-                onClick={handleFillDemoOtp}
-                style={{ background: '#dcfce7', border: 'none', color: '#15803d', padding: '4px 12px', borderRadius: '100px', fontWeight: '700', cursor: 'pointer' }}
-              >
-                ⚡ Fill Demo OTP
-              </button>
-
-              <button
-                type="button"
-                onClick={handleResend}
-                style={{ background: 'none', border: 'none', color: '#15803d', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline' }}
-              >
-                Resend Code
-              </button>
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary"
-              style={{ width: '100%', padding: '14px', fontSize: '0.98rem', justifyContent: 'center' }}
-            >
-              Verify & Proceed →
+            <button type="submit" className="btn btn-primary checkout-continue"
+                    disabled={otp.length !== 6 || verifying}>
+              {verifying ? 'Checking...' : 'Confirm'}
             </button>
           </form>
 
+          <p className="checkout-footnote">
+            Order <strong>{orderId}</strong> — quote this if you contact support.
+          </p>
         </div>
-
-        <div style={{ textAlign: 'center', marginTop: '20px' }}>
-          <Link to="/checkout/account" style={{ fontSize: '0.85rem', color: '#64748b', textDecoration: 'none' }}>
-            ← Back to Account Identification
-          </Link>
-        </div>
-
       </div>
     </div>
   );

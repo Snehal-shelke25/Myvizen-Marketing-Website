@@ -7,7 +7,11 @@ export default function ToastContainer() {
   if (!toasts || toasts.length === 0) return null;
 
   return (
-    <div style={{
+    <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="false"
+      style={{
       position: 'fixed',
       top: '24px',
       right: '24px',
@@ -35,17 +39,21 @@ export default function ToastContainer() {
               padding: '14px 18px',
               boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
               display: 'flex',
-              alignItems: 'center',
+              // Top-aligned, not centred: error toasts now stay until dismissed
+              // and can run to several lines, and the dismiss button should sit
+              // beside the first line rather than float in the middle.
+              alignItems: 'flex-start',
               justifyContent: 'space-between',
               gap: '12px',
               fontFamily: 'var(--font-heading)',
               fontSize: '0.88rem',
               fontWeight: '700',
               animation: 'toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+              lineHeight: 1.45,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '1.2rem' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <span style={{ fontSize: '1.2rem', flexShrink: 0, lineHeight: 1.2 }} aria-hidden="true">
                 {isError ? '⚠️' : isInfo ? 'ℹ️' : '✅'}
               </span>
               <span>{t.message}</span>
@@ -53,6 +61,7 @@ export default function ToastContainer() {
 
             <button
               onClick={() => removeToast(t.id)}
+              aria-label="Dismiss notification"
               style={{
                 background: 'none',
                 border: 'none',
@@ -61,6 +70,9 @@ export default function ToastContainer() {
                 cursor: 'pointer',
                 opacity: 0.6,
                 padding: '2px',
+                // Without this the ✕ gets squashed when a long error wraps.
+                flexShrink: 0,
+                lineHeight: 1.2,
               }}
             >
               ✕

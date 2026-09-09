@@ -1,33 +1,37 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { MOCK_PLANS, calculatePlanAmount } from '../mocks/plans';
-import { useAuth } from '../context/AuthContext';
-import CoachLoginModal from '../components/CoachLoginModal';
+import { MOCK_PLANS } from '../mocks/plans';
+import { usePlans } from '../checkout/usePlans';
 
 export default function PricingPage() {
   const [durationMonths, setDurationMonths] = useState(3); // 1, 3, 6, 12
-  const [pendingPlan, setPendingPlan] = useState(null);
-  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const navigate = useNavigate();
-  const { isLoggedIn, coachName } = useAuth();
 
-  const proceedToCheckout = (plan, selectedCoach = null) => {
-    const amount = calculatePlanAmount(plan.id, durationMonths);
-    const coachData = selectedCoach || {
-      name: coachName || 'Snehal Shelke',
-      centre: 'Charming Aura Wellness',
-      maskedEmail: 'coach@myvizen.com',
-      email: 'coach@myvizen.com',
-    };
+  // Pricing, durations and discounts all come from the server. The local table
+  // supplies only marketing copy (subtitles, feature lists).
+  const {
+    loading: plansLoading, error: plansError, enabled: paymentsEnabled,
+    durations, priceFor, discountFor,
+  } = usePlans();
 
+  const calculatePlanAmount = (planId, months) => {
+    const fromServer = priceFor(planId, months);
+    if (fromServer !== null) return fromServer;
+    // Before the catalogue loads, show the undiscounted figure rather than a
+    // blank card — it is corrected the moment the request lands.
+    const monthly = MOCK_PLANS.find((p) => p.id === planId)?.monthlyPrice || 0;
+    return Math.round(monthly * months);
+  };
+
+  const proceedToCheckout = (plan) => {
     navigate('/checkout/account', {
       state: {
-        plan,
-        durationMonths,
-        amount,
-        coach: coachData,
-      }
+        planCode: plan.id,
+        planName: plan.name,
+        months: durationMonths,
+        amount: calculatePlanAmount(plan.id, durationMonths),
+      },
     });
   };
 
@@ -36,25 +40,17 @@ export default function PricingPage() {
       navigate('/download');
       return;
     }
-
-    if (!isLoggedIn) {
-      setPendingPlan(plan);
-      setShowLoginModal(true);
-    } else {
-      proceedToCheckout(plan);
-    }
-  };
-
-  const handleLoginSuccess = (loggedInCoach) => {
-    if (pendingPlan) {
-      proceedToCheckout(pendingPlan, loggedInCoach);
-    }
+    if (!paymentsEnabled) return;
+    // No sign-in gate here on purpose. This used to open the ADMIN login modal,
+    // which a coach buying a plan has no credentials for. Checkout identifies
+    // the account itself — lookup, then a code emailed to the registered
+    // address — which is both easier and a stronger check than a password.
+    proceedToCheckout(plan);
   };
 
   const getDiscountBadge = (months) => {
-    if (months === 3) return 'Save 5%';
-    if (months === 6) return 'Save 10%';
-    if (months === 12) return 'Save 20%';
+    const percent = discountFor(months);
+    if (percent > 0) return `Save ${percent}%`;
     return null;
   };
 
@@ -62,62 +58,24 @@ export default function PricingPage() {
     <div style={{ paddingTop: '100px', paddingBottom: '80px', background: '#f8fafc', minHeight: '100vh', fontFamily: 'var(--font-body)' }}>
       <div className="container">
 
-        {/* ── LOGGED IN COACH STATUS BANNER ── */}
-        {isLoggedIn ? (
-          <div style={{
-            background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-            border: '1.5px solid #86efac',
-            borderRadius: '16px',
-            padding: '12px 20px',
-            marginBottom: '32px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-            flexWrap: 'wrap',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '1.2rem' }}>🟢</span>
-              <div>
-                <span style={{ fontSize: '0.88rem', fontWeight: '800', color: '#09381e', display: 'block' }}>
-                  Logged in as Coach: {coachName || 'Snehal Shelke'}
-                </span>
-                <span style={{ fontSize: '0.78rem', color: '#166534' }}>
-                  Select your center's plan below to proceed to checkout
-                </span>
-              </div>
-            </div>
-            <Link to="/admin" className="btn btn-outline" style={{ padding: '6px 14px', fontSize: '0.78rem' }}>
-              View Dashboard ➔
-            </Link>
-          </div>
-        ) : (
-          <div style={{
-            background: '#fff7ed',
-            border: '1px solid #ffedd5',
-            borderRadius: '16px',
-            padding: '12px 20px',
-            marginBottom: '32px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-            flexWrap: 'wrap',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '1.2rem' }}>🔑</span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#c2410c' }}>
-                Coach Portal Login required to activate subscription plan
-              </span>
-            </div>
-            <button
-              onClick={() => setShowLoginModal(true)}
-              style={{ background: '#ea580c', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '100px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer' }}
-            >
-              Sign In as Coach
-            </button>
+        {/* Payments are inert until a UPI id is configured on the server. Say
+            so plainly rather than letting the buttons do nothing. */}
+        {plansError && (
+          <div className="checkout-error" role="alert" style={{ marginBottom: 20 }}>
+            <strong>Could not load current pricing.</strong>{' '}
+            The figures below may be out of date — please refresh before paying.
           </div>
         )}
+
+        {!paymentsEnabled && (
+          <div className="checkout-error" role="status" style={{ marginBottom: 28 }}>
+            <strong>Online payment is temporarily unavailable.</strong>{' '}
+            Please contact support to activate or renew your plan — we can set
+            it up for you directly.
+          </div>
+        )}
+
+
 
         {/* ── HEADER ── */}
         <div style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 40px auto' }}>
@@ -156,7 +114,9 @@ export default function PricingPage() {
             gap: '4px',
             border: '1px solid #e2e8f0',
           }}>
-            {[1, 3, 6, 12].map(m => {
+            {/* Durations come from the server too, so adding or removing one
+                is a backend change rather than an edit in two places. */}
+            {(durations.length ? durations.map((d) => d.months) : [1, 3, 6, 12]).map(m => {
               const active = durationMonths === m;
               const badge = getDiscountBadge(m);
 
@@ -365,13 +325,6 @@ export default function PricingPage() {
 
       </div>
 
-      {/* Login Modal trigger */}
-      {showLoginModal && (
-        <CoachLoginModal
-          onClose={() => setShowLoginModal(false)}
-          onSuccess={handleLoginSuccess}
-        />
-      )}
     </div>
   );
 }

@@ -26,17 +26,19 @@ import PayStep from './pages/checkout/PayStep';
 import ProofStep from './pages/checkout/ProofStep';
 import OrderStatusPage from './pages/OrderStatusPage';
 
-import AdminLogin from './pages/admin/AdminLogin';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import CoachManagement from './pages/admin/CoachManagement';
-import GuestManagement from './pages/admin/GuestManagement';
-import ReportGenerator from './pages/admin/ReportGenerator';
-import DietArchitect from './pages/admin/DietArchitect';
-import VisitorRegistry from './pages/admin/VisitorRegistry';
-import CenterAnalytics from './pages/admin/CenterAnalytics';
-import SubscriptionsPage from './pages/admin/SubscriptionsPage';
-import PaymentVerificationPage from './pages/admin/PaymentVerificationPage';
-import AdminSettings from './pages/admin/AdminSettings';
+// Admin module — see src/admin/
+import AdminLogin from './admin/pages/AdminLogin';
+import AdminDashboard from './admin/pages/AdminDashboard';
+import CoachManagement from './admin/pages/CoachManagement';
+import GuestManagement from './admin/pages/GuestManagement';
+import SubscriptionsPage from './admin/pages/SubscriptionsPage';
+import PaymentVerificationPage from './admin/pages/PaymentVerificationPage';
+import AuditLogPage from './admin/pages/AuditLogPage';
+import DeletionQueuePage from './admin/pages/DeletionQueuePage';
+import ErrorLogPage from './admin/pages/ErrorLogPage';
+import ReportsPage from './admin/pages/ReportsPage';
+import AdminSettings from './admin/pages/AdminSettings';
+
 
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
@@ -95,12 +97,12 @@ export default function App() {
             <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/coaches" element={<ProtectedRoute><CoachManagement /></ProtectedRoute>} />
             <Route path="/admin/guests" element={<ProtectedRoute><GuestManagement /></ProtectedRoute>} />
-            <Route path="/admin/reports" element={<ProtectedRoute><ReportGenerator /></ProtectedRoute>} />
-            <Route path="/admin/diet-plans" element={<ProtectedRoute><DietArchitect /></ProtectedRoute>} />
-            <Route path="/admin/visitors" element={<ProtectedRoute><VisitorRegistry /></ProtectedRoute>} />
             <Route path="/admin/payments" element={<ProtectedRoute><PaymentVerificationPage /></ProtectedRoute>} />
             <Route path="/admin/subscriptions" element={<ProtectedRoute><SubscriptionsPage /></ProtectedRoute>} />
-            <Route path="/admin/analytics" element={<ProtectedRoute><CenterAnalytics /></ProtectedRoute>} />
+            <Route path="/admin/audit" element={<ProtectedRoute><AuditLogPage /></ProtectedRoute>} />
+            <Route path="/admin/deletions" element={<ProtectedRoute><DeletionQueuePage /></ProtectedRoute>} />
+            <Route path="/admin/errors" element={<ProtectedRoute><ErrorLogPage /></ProtectedRoute>} />
+            <Route path="/admin/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
 
             <Route path="*" element={<NotFoundPage />} />

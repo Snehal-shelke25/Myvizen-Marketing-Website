@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import CoachLoginModal from './CoachLoginModal';
+import OrderLookupModal from '../checkout/OrderLookupModal';
 
 export default function PricingNavbar() {
-  const { isLoggedIn, coachName, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showLookup, setShowLookup] = useState(false);
 
   const isActive = (path) => location.pathname === path;
 
@@ -97,53 +95,27 @@ export default function PricingNavbar() {
             </Link>
           </nav>
 
-          {/* ── Coach Login / Status Actions ── */}
+          {/* ── Order lookup ── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {isLoggedIn ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '6px 14px', borderRadius: '100px' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#15803d' }}>
-                  🟢 Coach: {coachName || 'Snehal Shelke'}
-                </span>
-                <button
-                  onClick={() => navigate('/admin')}
-                  style={{
-                    background: '#15803d',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '100px',
-                    padding: '4px 12px',
-                    fontSize: '0.75rem',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Dashboard ➔
-                </button>
-                <button
-                  onClick={logout}
-                  title="Log out coach"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', color: '#94a3b8' }}
-                >
-                  🚪
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowLoginModal(true)}
-                className="btn btn-outline"
-                style={{ padding: '8px 18px', fontSize: '0.85rem' }}
-              >
-                🔑 Coach Login
-              </button>
-            )}
+            {/* No signed-in state here on purpose. This used to read the
+                ADMIN session and label whoever it found as "Coach: Snehal
+                Shelke" with a link into the admin panel — on a page meant for
+                coaches buying a plan, who have no web account at all. */}
+            <button
+              onClick={() => setShowLookup(true)}
+              className="btn btn-outline"
+              style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+            >
+              Check my order
+            </button>
           </div>
 
         </div>
       </header>
 
-      {/* Coach Login Modal */}
-      {showLoginModal && (
-        <CoachLoginModal onClose={() => setShowLoginModal(false)} />
+      {/* Order status lookup */}
+      {showLookup && (
+        <OrderLookupModal onClose={() => setShowLookup(false)} />
       )}
     </>
   );

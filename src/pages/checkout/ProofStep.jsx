@@ -1,138 +1,130 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useToast } from '../../context/ToastContext';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import CheckoutStepsHeader from '../../components/CheckoutStepsHeader';
+import * as checkoutApi from '../../checkout/api';
+import { getCheckout, rememberOrder } from '../../checkout/session';
 
+const money = (n) => `Rs. ${Number(n || 0).toLocaleString('en-IN')}`;
+
+/**
+ * Step 5 — report the payment.
+ *
+ * The UTR is the value that appears identically in the coach's UPI app and in
+ * our bank statement, so it is what actually lets an operator match the money
+ * to this order. "Where do I find it?" is the most common question in this
+ * whole flow, so the answer is on the page rather than in a support message.
+ */
 export default function ProofStep() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { showToast } = useToast();
 
-  const orderId = location.state?.orderId || 'MV-2609-00123';
-  const plan = location.state?.plan || { name: 'Professional' };
-  const durationMonths = location.state?.durationMonths || 3;
-  const amount = location.state?.amount || 1497;
-  const coach = location.state?.coach || { name: 'Pankaj Narwade', centre: 'Charming Aura, Pune' };
+  const session = getCheckout();
+  const orderId = location.state?.orderId || session?.orderId;
+  const token = session?.token;
 
-  const [utr, setUtr] = useState('987654321098');
-  const [payerName, setPayerName] = useState(coach.name || 'Pankaj Narwade');
-  const [fileName, setFileName] = useState('payment_receipt_upi.jpg');
-  const [note, setNote] = useState('Paid via PhonePe App');
+  const [order, setOrder] = useState(null);
+  const [utr, setUtr] = useState('');
+  const [payerName, setPayerName] = useState('');
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!utr || utr.length < 6) {
-      showToast('Please enter a valid 12-digit UTR reference number', 'error');
-      return;
+  useEffect(() => {
+    if (!orderId || !token) { navigate('/pricing', { replace: true }); return; }
+    let active = true;
+    checkoutApi.getOrder(orderId, token)
+      .then((data) => { if (active) setOrder(data); })
+      .catch(() => { /* the form still works; the header just shows less */ });
+    return () => { active = false; };
+  }, [orderId, token, navigate]);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      await checkoutApi.submitProof(orderId, {
+        token, utr: utr.trim(), payerName: payerName.trim(), note: note.trim(),
+      });
+      rememberOrder(orderId, token);
+      navigate(`/order/${orderId}?t=${token}`, { replace: true });
+    } catch (err) {
+      setError(err.message || 'Could not submit your payment details.');
+    } finally {
+      setSaving(false);
     }
-    showToast('Payment proof submitted successfully!', 'success');
-    navigate(`/order/${orderId}`, {
-      state: { orderId, plan, durationMonths, amount, coach, utr, payerName }
-    });
   };
 
+  const cleanedUtr = utr.replace(/\s/g, '');
+
   return (
-    <div style={{ paddingTop: '100px', paddingBottom: '80px', background: '#f8fafc', minHeight: '100vh', fontFamily: 'var(--font-body)' }}>
-      <div className="container" style={{ maxWidth: '580px' }}>
+    <div className="checkout-page">
+      <CheckoutStepsHeader currentStep={5} />
 
-        <CheckoutStepsHeader currentStep={5} />
-
-        {/* Step Header */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.8rem', fontWeight: '800', color: '#09381e', margin: '0 0 6px 0' }}>
-            Submit Payment Details
-          </h2>
-          <p style={{ fontSize: '0.9rem', color: '#64748b', margin: 0 }}>
-            Enter your UTR transaction ID and upload a screenshot to activate your plan
+      <div className="container" style={{ maxWidth: '600px' }}>
+        <div className="checkout-card">
+          <h2>Confirm your payment</h2>
+          <p className="checkout-help">
+            Order {orderId}{order ? ` · ${money(order.amount)}` : ''}
           </p>
-        </div>
 
-        {/* Form Card */}
-        <div style={{ background: '#ffffff', borderRadius: '24px', padding: '36px', boxShadow: '0 8px 30px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' }}>
+          <form onSubmit={submit}>
+            <label className="checkout-label" htmlFor="utr">
+              UPI reference / UTR number
+            </label>
+            <input
+              id="utr"
+              className="admin-input"
+              value={utr}
+              onChange={(event) => setUtr(event.target.value)}
+              placeholder="e.g. 452988110034"
+              inputMode="numeric"
+              required
+            />
+            <details className="checkout-details">
+              <summary>Where do I find this?</summary>
+              <ul className="checkout-hint-list">
+                <li><strong>Google Pay</strong> — open the payment, tap it, look for "UPI transaction ID".</li>
+                <li><strong>PhonePe</strong> — History, tap the payment, "Transaction ID".</li>
+                <li><strong>Paytm</strong> — Balance &amp; History, tap the payment, "UPI Ref No".</li>
+              </ul>
+            </details>
+            {cleanedUtr && cleanedUtr.length < 12 && (
+              <p className="checkout-soft-warning">
+                That looks short — most UPI references are 12 digits. Send it
+                anyway if it matches your app.
+              </p>
+            )}
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <label className="checkout-label" htmlFor="payer">
+              Name shown in your UPI app <span className="checkout-optional">(optional)</span>
+            </label>
+            <input
+              id="payer"
+              className="admin-input"
+              value={payerName}
+              onChange={(event) => setPayerName(event.target.value)}
+              placeholder="Only if different from your MyVizen name"
+            />
 
-            {/* UTR Number */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#09381e', marginBottom: '6px' }}>
-                12-Digit UPI Reference / UTR Number *
-              </label>
-              <input
-                type="text"
-                required
-                value={utr}
-                onChange={e => setUtr(e.target.value)}
-                placeholder="e.g. 987654321098"
-                style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #cbd5e1', fontSize: '0.95rem', outline: 'none', fontFamily: 'var(--font-body)' }}
-              />
-              <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', display: 'block' }}>
-                Found in your UPI transaction receipt details
-              </span>
-            </div>
+            <label className="checkout-label" htmlFor="note">
+              Anything we should know? <span className="checkout-optional">(optional)</span>
+            </label>
+            <input
+              id="note"
+              className="admin-input"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+            />
 
-            {/* Screenshot Dropzone Upload Mock */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#09381e', marginBottom: '6px' }}>
-                Payment Screenshot *
-              </label>
-              <div style={{
-                border: '2px dashed #22c55e',
-                borderRadius: '16px',
-                padding: '24px',
-                textAlign: 'center',
-                background: '#f0fdf4',
-                cursor: 'pointer',
-              }}>
-                <span style={{ fontSize: '2rem', display: 'block', marginBottom: '6px' }}>📸</span>
-                <span style={{ fontSize: '0.88rem', fontWeight: '700', color: '#15803d', display: 'block' }}>
-                  {fileName ? `✓ Selected: ${fileName}` : 'Click to Upload Payment Screenshot'}
-                </span>
-                <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', display: 'block' }}>
-                  PNG, JPG or WEBP up to 5MB
-                </span>
-              </div>
-            </div>
+            {error && <div className="checkout-error" role="alert">{error}</div>}
 
-            {/* Payer Name */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#09381e', marginBottom: '6px' }}>
-                Payer Name (Name registered on UPI App)
-              </label>
-              <input
-                type="text"
-                required
-                value={payerName}
-                onChange={e => setPayerName(e.target.value)}
-                placeholder="e.g. Pankaj Narwade"
-                style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #cbd5e1', fontSize: '0.95rem', outline: 'none', fontFamily: 'var(--font-body)' }}
-              />
-            </div>
-
-            {/* Optional Note */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#09381e', marginBottom: '6px' }}>
-                Optional Note / Remarks
-              </label>
-              <input
-                type="text"
-                value={note}
-                onChange={e => setNote(e.target.value)}
-                placeholder="e.g. Paid from HDFC Bank UPI"
-                style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #cbd5e1', fontSize: '0.95rem', outline: 'none', fontFamily: 'var(--font-body)' }}
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary"
-              style={{ width: '100%', padding: '14px', fontSize: '0.98rem', justifyContent: 'center', marginTop: '10px' }}
-            >
-              Submit Proof for Review →
+            <button type="submit" className="btn btn-primary checkout-continue"
+                    disabled={saving || cleanedUtr.length < 8}>
+              {saving ? 'Submitting...' : 'Submit for review'}
             </button>
           </form>
-
         </div>
-
       </div>
     </div>
   );
